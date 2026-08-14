@@ -15,7 +15,7 @@ permissions:
 
 env:
   IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/sub2api
-  IMAGE_TAG: 0.1.176-entrypoint0755
+  IMAGE_TAG: 0.1.176-entrypoint0755-v2
 
 jobs:
   build-and-verify:
@@ -34,6 +34,9 @@ jobs:
           platforms: linux/amd64
           load: true
           tags: sub2api-candidate:${{ github.sha }}
+          build-args: |
+            VERSION=0.1.176
+            COMMIT=e803e3851c0a7e222cfadeafad7b8636ab959d11
 
       - name: Verify entrypoint contract
         run: |
@@ -42,6 +45,7 @@ jobs:
           test "$(docker run --rm --entrypoint stat "$image" -c '%a' /app/docker-entrypoint.sh)" = 755
           docker run --rm --entrypoint sh "$image" -n /app/docker-entrypoint.sh
           docker run --rm --user sub2api --entrypoint /app/docker-entrypoint.sh "$image" /app/sub2api --help >/dev/null
+          docker run --rm --entrypoint /app/sub2api "$image" --version 2>&1 | grep -F 'Sub2API 0.1.176'
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -56,6 +60,9 @@ jobs:
           context: .
           platforms: linux/amd64
           push: true
+          build-args: |
+            VERSION=0.1.176
+            COMMIT=e803e3851c0a7e222cfadeafad7b8636ab959d11
           tags: |
             ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
             ${{ env.IMAGE_NAME }}:0.1.176-entrypoint0755-${{ github.sha }}
