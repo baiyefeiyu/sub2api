@@ -2,6 +2,12 @@ name: Build entrypoint-0755 image
 
 on:
   workflow_dispatch:
+    inputs:
+      source_ref:
+        description: Git ref containing the candidate Dockerfile
+        required: true
+        default: codex/sub2api-0.1.176-entrypoint0755
+        type: string
 
 permissions:
   contents: read
@@ -16,6 +22,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_ref }}
 
       - uses: docker/setup-buildx-action@v3
 
