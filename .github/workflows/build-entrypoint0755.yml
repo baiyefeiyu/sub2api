@@ -1,0 +1,61 @@
+name: Build entrypoint-0755 image
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: Git ref containing the candidate Dockerfile
+        required: true
+        default: codex/sub2api-0.1.176-entrypoint0755
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/sub2api
+  IMAGE_TAG: 0.1.176-entrypoint0755
+
+jobs:
+  build-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_ref }}
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build candidate image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          load: true
+          tags: sub2api-candidate:${{ github.sha }}
+
+      - name: Verify entrypoint contract
+        run: |
+          set -euo pipefail
+          image=sub2api-candidate:${GITHUB_SHA}
+          test "$(docker run --rm --entrypoint stat "$image" -c '%a' /app/docker-entrypoint.sh)" = 755
+          docker run --rm --entrypoint sh "$image" -n /app/docker-entrypoint.sh
+          docker run --rm --user sub2api --entrypoint /app/docker-entrypoint.sh "$image" /app/sub2api --help >/dev/null
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish verified candidate
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+            ${{ env.IMAGE_NAME }}:0.1.176-entrypoint0755-${{ github.sha }}
